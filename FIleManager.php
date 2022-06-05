@@ -1,138 +1,51 @@
 <?php
 
-class FileManager
+echo "<pre>";
+
+function list_folder_files($dir, array $fileType = [], string $search_by_pattern_or_filename = ''): object
 {
-    public $errors = null;
-    public $directoies = [
-        "woocommerce/",
-        "woocommerce/single-product/",
-        "woocommerce/single-product/tabs/",
-        "woocommerce/single-product/add-to-cart/",
-    ];
+    $search = $search_by_pattern_or_filename;
+    $fileInfo = scandir($dir);
 
-    public function dir_is_empty($dir)
-    {
-        return (is_dir($dir) && count(glob("$dir/*")) === 0) ? true : false;
+    if (!defined("GLOBAL_SCOPE_VAR")) {
+        define("GLOBAL_SCOPE_VAR", '_ENV');
+        $GLOBALS[GLOBAL_SCOPE_VAR]['___dirs'] = [];
+        $GLOBALS[GLOBAL_SCOPE_VAR]['___files'] = [];
     }
 
-    public function copy_folder_files()
-    {
-        $this->create_directories();
-        $this->create_files();
-    }
-
-    public function remove_folder_files(): void
-    {
-        if (is_dir(RNTMY_EMBED_THEME_DIR . 'woocommerce')) {
-            $this->create_files(true);
-            $this->remove_directories();
-        }
-    }
-
-    public function create_directories()
-    {
-        foreach ($this->directoies as $dir) {
-            $directory = RNTMY_EMBED_THEME_DIR . $dir;
-            if (!is_dir($directory)) {
-                mkdir($directory);
-            }
-        }
-    }
-
-    public function remove_directories()
-    {
-        $errors = [];
-        foreach (array_reverse($this->directoies) as $dir) {
-            $directory = RNTMY_EMBED_THEME_DIR . $dir;
-            if (is_dir($directory)) {
-                try {
-                    rmdir($directory);
-                } catch (\Exception $e) {
-                    $errors[] = $e->getMessage();
-                }
-            }
-        }
-        if (!empty($errors)) {
-            $this->errors = implode('<br>', $errors);
-        }
-    }
-
-    public function create_files($deleteFromTheme = false)
-    {
-        foreach ($this->directoies as $base_dir) {
-            $files = $this->get_list_of('files', RNTMY_EMBED_PLUGIN_DIR . 'assets/' . $base_dir);
-            foreach ($files as $file) {
-                $themeFile = RNTMY_EMBED_THEME_DIR . $base_dir . $file;
-                fclose(fopen($themeFile, "w"));
-                if ($deleteFromTheme) {
-                    unlink($themeFile);
+    if (is_dir($dir)) {
+        $dir = str_replace('/', '/', rtrim($dir, '/\\'));
+        foreach ($fileInfo as $folder) {
+            if ($folder !== '.' && $folder !== '..') {
+                if (is_dir($dir . DIRECTORY_SEPARATOR . $folder) === true) {
+                    $all[$folder . '/'] = list_folder_files($dir . DIRECTORY_SEPARATOR . $folder, $fileType, $search_by_pattern_or_filename);
+                    if (!empty(GLOBAL_SCOPE_VAR)) {
+                        array_unshift($GLOBALS[GLOBAL_SCOPE_VAR]['___dirs'], $dir . DIRECTORY_SEPARATOR . $folder);
+                    }
                 } else {
-                    $pluginFile = RNTMY_EMBED_PLUGIN_DIR . 'assets/' . $base_dir . $file;
-                    $content = file_get_contents($pluginFile);
-                    file_put_contents($themeFile, $content);
-                }
-            }
-        }
-    }
+                    $file = $folder;
 
-    function list_folder_files($dir, array $fileType = [], string $search_by_pattern_or_filename = ''): object
-    {
-        $search = $search_by_pattern_or_filename;
-        $fileInfo = scandir($dir);
-
-        if (!defined("GLOBAL_SCOPE_VAR")) {
-            define("GLOBAL_SCOPE_VAR", '_ENV');
-            $GLOBALS[GLOBAL_SCOPE_VAR]['___dirs'] = [];
-            $GLOBALS[GLOBAL_SCOPE_VAR]['___files'] = [];
-        }
-
-        if (is_dir($dir)) {
-            $dir = str_replace('/', '/', rtrim($dir, '/\\'));
-            foreach ($fileInfo as $folder) {
-                if ($folder !== '.' && $folder !== '..') {
-                    if (is_dir($dir . DIRECTORY_SEPARATOR . $folder) === true) {
-                        $all[$folder . '/'] = $this->list_folder_files($dir . DIRECTORY_SEPARATOR . $folder, $fileType, $search_by_pattern_or_filename);
-                        if (!empty(GLOBAL_SCOPE_VAR)) {
-                            array_unshift($GLOBALS[GLOBAL_SCOPE_VAR]['___dirs'], $dir . DIRECTORY_SEPARATOR . $folder);
+                    /* -------------------------------------------------------------------------- */
+                    /*                     Is seach by pattern or solid string                    */
+                    /* -------------------------------------------------------------------------- */
+                    if (!empty(GLOBAL_SCOPE_VAR)) {
+                        if (preg_match('/^\//', $search)) {
+                            $byPattern = true;
+                        } else {
+                            $byPattern = false;
                         }
-                    } else {
-                        $file = $folder;
-
                         /* -------------------------------------------------------------------------- */
-                        /*                     Is seach by pattern or solid string                    */
+                        /*                               Check Filtering                              */
                         /* -------------------------------------------------------------------------- */
-                        if (!empty(GLOBAL_SCOPE_VAR)) {
-                            if (preg_match('/^\//', $search)) {
-                                $byPattern = true;
-                            } else {
-                                $byPattern = false;
-                            }
-                            /* -------------------------------------------------------------------------- */
-                            /*                               Check Filtering                              */
-                            /* -------------------------------------------------------------------------- */
 
-                            if (!empty($fileType)) {
-                                $extension = pathinfo($file, PATHINFO_EXTENSION);
-                                if (is_array($fileInfo) && (in_array($extension, $fileType) || in_array(".$extension", $fileType))) {
-                                    /* -------------------------------------------------------------------------- */
-                                    /*                         Search File in select types                        */
-                                    /* -------------------------------------------------------------------------- */
-                                    if (!empty($search)) {
-                                        if ($byPattern && preg_match($search, $file, $f)) {
-                                            array_push($GLOBALS[GLOBAL_SCOPE_VAR]['___files'], $dir . DIRECTORY_SEPARATOR . $file);
-                                        } elseif (!$byPattern && strpos($file, $search) !== false) {
-                                            array_push($GLOBALS[GLOBAL_SCOPE_VAR]['___files'], $dir . DIRECTORY_SEPARATOR . $file);
-                                        }
-                                    } else {
-                                        array_push($GLOBALS[GLOBAL_SCOPE_VAR]['___files'], $dir . DIRECTORY_SEPARATOR . $file);
-                                    }
-                                }
-                            } else {
+                        if (!empty($fileType)) {
+                            $extension = pathinfo($file, PATHINFO_EXTENSION);
+                            if (is_array($fileInfo) && (in_array($extension, $fileType) || in_array(".$extension", $fileType))) {
                                 /* -------------------------------------------------------------------------- */
-                                /*                               Searching Files                              */
+                                /*                         Search File in select types                        */
                                 /* -------------------------------------------------------------------------- */
                                 if (!empty($search)) {
-                                    if ($byPattern && preg_match($search, $file)) {
+                                    if ($byPattern && preg_match($search, $file, $f)) {
                                         array_push($GLOBALS[GLOBAL_SCOPE_VAR]['___files'], $dir . DIRECTORY_SEPARATOR . $file);
                                     } elseif (!$byPattern && strpos($file, $search) !== false) {
                                         array_push($GLOBALS[GLOBAL_SCOPE_VAR]['___files'], $dir . DIRECTORY_SEPARATOR . $file);
@@ -141,54 +54,142 @@ class FileManager
                                     array_push($GLOBALS[GLOBAL_SCOPE_VAR]['___files'], $dir . DIRECTORY_SEPARATOR . $file);
                                 }
                             }
+                        } else {
+                            /* -------------------------------------------------------------------------- */
+                            /*                               Searching Files                              */
+                            /* -------------------------------------------------------------------------- */
+                            if (!empty($search)) {
+                                if ($byPattern && preg_match($search, $file)) {
+                                    array_push($GLOBALS[GLOBAL_SCOPE_VAR]['___files'], $dir . DIRECTORY_SEPARATOR . $file);
+                                } elseif (!$byPattern && strpos($file, $search) !== false) {
+                                    array_push($GLOBALS[GLOBAL_SCOPE_VAR]['___files'], $dir . DIRECTORY_SEPARATOR . $file);
+                                }
+                            } else {
+                                array_push($GLOBALS[GLOBAL_SCOPE_VAR]['___files'], $dir . DIRECTORY_SEPARATOR . $file);
+                            }
                         }
                     }
                 }
             }
         }
-
-        return (object) [
-            'dirs' => $GLOBALS[GLOBAL_SCOPE_VAR]['___dirs'],
-            'files' => $GLOBALS[GLOBAL_SCOPE_VAR]['___files'],
-        ];
     }
 
-    /**
-     * We can get folders or files list from a directory
-     *
-     * @param string $type @example 'files'|'folder'
-     * @param string $base_dir
-     * @param array $exclude @example ['readme.md', 'test.txt'];
-     * @param boolean $withFullPath
-     * @return array
-     */
-    public function get_list_of($type, $base_dir, $exclude = [], $withFullPath = false): array
-    {
-        $myList = [];
-
-        $base_dir = rtrim($base_dir, '/\\') . '/';
-
-        if ($handle = opendir($base_dir)) {
-
-            while (false !== ($file = readdir($handle))) {
-                if ($file != "." && $file != "..") {
-                    $fullPath = $base_dir . $file;
-                    if ('files' == $type) {
-                        if (is_file($fullPath) && !is_dir($fullPath) && !in_array($file, $exclude)) {
-                            $file = $withFullPath ? $base_dir . $file : $file;
-                            $myList[] = $file;
-                        }
-                    }
-                    if ('folders' == $type) {
-                        if (!is_file($fullPath) && is_dir($fullPath) && !in_array($file, $exclude)) {
-                            $file = $withFullPath ? $base_dir . $file : $file;
-                            $myList[] = $file;
-                        }
-                    }
-                }
-            }
-            closedir($handle);
-            return $myList;
-        }
-    }
+    return (object) [
+        'dirs' => $GLOBALS[GLOBAL_SCOPE_VAR]['___dirs'],
+        'files' => $GLOBALS[GLOBAL_SCOPE_VAR]['___files'],
+    ];
 }
+
+
+/**
+ * Seach any text from string file
+ *
+ * @param [string or array] $filePath
+ * @param string $search
+ * @param boolean $case_sensitive
+ * @return array
+ */
+function search_from_file($filePath, $search = '', $case_sensitive = true): array
+{
+    $results = [
+        'search' => $search,
+        'total' => 0,
+        'result' => [],
+    ];
+    $case_sensitive = $case_sensitive ? '' : 'i';
+    if (!empty($filePath) && !empty($search)) {
+        if (!is_array($filePath)) {
+            $filePath = [$filePath];
+        }
+        foreach ($filePath as $file) {
+            if (is_file($file)) {
+                $content = file_get_contents("$file");
+                preg_match_all(preg_quote("/{$search}/{$case_sensitive}"), $content, $matched);
+                if (!empty($matched[0] ?? [])) {
+                    $count = count($matched[0]);
+                    $results["$file::$count"] = $matched[0];
+                }
+            }
+        }
+    }
+    $results['total'] = count($results, COUNT_RECURSIVE) - 1;
+    return $results;
+}
+
+/**
+ * Seach any text from string file
+ *
+ * @param [string or array] $filePath
+ * @param string $pattern
+ * @return array
+ */
+function search_from_file_by_regex($filePath, $pattern = ''): array
+{
+    $results = [
+        'search' => $pattern,
+        'total' => 0,
+        'result' => [],
+    ];
+    if (!empty($filePath) && !empty($pattern)) {
+        if (!is_array($filePath)) {
+            $filePath = [$filePath];
+        }
+        foreach ($filePath as $file) {
+            if (is_file($file)) {
+                $content = file_get_contents("$file");
+                preg_match_all("$pattern", $content, $matched);
+                if (!empty($matched[0] ?? [])) {
+                    $count = count($matched[0]);
+                    $results["{$file} ► {$count}"] = $matched[0];
+                }
+            }
+        }
+    }
+    $results['total'] = count($results, COUNT_RECURSIVE) - 1;
+    return $results;
+}
+
+function search_matched_lines_from_file_by_regex($filePath, $pattern = ''): array
+{
+    $results = [
+        'search' => $pattern,
+        'total' => 0,
+        'result' => [],
+    ];
+    if (!empty($filePath) && !empty($pattern)) {
+        if (!is_array($filePath)) {
+            $filePath = [$filePath];
+        }
+        foreach ($filePath as $file) {
+            if (is_file($file)) {
+                if ($_file = fopen($file, "r")) {
+                    $lineCount = 1;
+                    while (!feof($_file)) {
+                        $line = fgets($_file);
+                        if (!empty($line)) {
+                            preg_match("$pattern", $line, $matched);
+                            if (!empty($matched[0] ?? '')) {
+                                // $results['result'][$file] = $line;
+                                // $results['result'][$file] = $matched;
+                                $results['result'][$file] = "{$matched[0]} ►► {$lineCount}";
+                            }
+                        }
+                        $lineCount++;
+                    }
+                    fclose($_file);
+                }
+            }
+        }
+    }
+    $results['total'] = count($results, COUNT_RECURSIVE) - 1;
+    return $results;
+}
+
+
+$dirs = list_folder_files('F:\tasks', ['.php']);
+// print_r($dirs->files);
+
+
+// print_r(search_from_file($dirs->files, 'AB2'));
+// print_r(search_from_file_by_regex($dirs->files, '/\$is_text/i'));
+print_r(search_matched_lines_from_file_by_regex($dirs->files, '/\$is_text/i'));
