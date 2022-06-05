@@ -5,7 +5,7 @@ function list_folder_files($dir, array $fileType = [], string $search_by_pattern
     $fileInfo = scandir($dir);
 
     if (!defined("GLOBAL_SCOPE_VAR")) {
-        define("GLOBAL_SCOPE_VAR", '_GET');
+        define("GLOBAL_SCOPE_VAR", '_ENV');
         $GLOBALS[GLOBAL_SCOPE_VAR]['___dirs'] = [];
         $GLOBALS[GLOBAL_SCOPE_VAR]['___files'] = [];
     }
