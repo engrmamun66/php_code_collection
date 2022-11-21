@@ -2,6 +2,14 @@
 
 echo "<pre>";
 
+/**
+ * Get Folders and files from directori and all sub directroies
+ *
+ * @param [type] $dir
+ * @param array $fileType
+ * @param string $search_by_pattern_or_filename
+ * @return object
+ */
 function list_folder_files($dir, array $fileType = [], string $search_by_pattern_or_filename = ''): object
 {
     $search = $search_by_pattern_or_filename;
@@ -73,7 +81,6 @@ function list_folder_files($dir, array $fileType = [], string $search_by_pattern
             }
         }
     }
-
     return (object) [
         'dirs' => $GLOBALS[GLOBAL_SCOPE_VAR]['___dirs'],
         'files' => $GLOBALS[GLOBAL_SCOPE_VAR]['___files'],
@@ -188,8 +195,6 @@ function search_matched_lines_from_file_by_regex($filePath, $pattern = ''): arra
 
 $dirs = list_folder_files('F:\tasks', ['.php']);
 // print_r($dirs->files);
-
-
 // print_r(search_from_file($dirs->files, 'AB2'));
 // print_r(search_from_file_by_regex($dirs->files, '/\$is_text/i'));
 print_r(search_matched_lines_from_file_by_regex($dirs->files, '/\$is_text/i'));
